@@ -296,9 +296,15 @@
 .tooltip.visible { opacity: 1; }
 .tooltip-title { color: var(--cyan); font-weight: 700; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; }
 .tooltip-list { color: var(--text-dim); line-height: 1.6; }
-.legend { display: flex; gap: 16px; align-items: center; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 11px; }
+.legend { display: flex; gap: 16px; align-items: center; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 11px; flex-wrap: wrap; }
 .legend-item { display: flex; align-items: center; gap: 6px; }
 .legend-box { width: 20px; height: 20px; border: 1px solid var(--grid); border-radius: 2px; }
+.legend-box.heat-0 { background: rgba(0, 0, 0, 0.4); }
+.legend-box.heat-1 { background: rgba(0, 229, 255, 0.15); border-color: rgba(0, 229, 255, 0.3); }
+.legend-box.heat-2 { background: rgba(0, 229, 255, 0.3); border-color: rgba(0, 229, 255, 0.5); }
+.legend-box.heat-3 { background: rgba(0, 229, 255, 0.5); border-color: rgba(0, 229, 255, 0.7); }
+.legend-box.heat-4 { background: rgba(0, 229, 255, 0.7); border-color: var(--cyan); box-shadow: 0 0 12px rgba(0, 229, 255, 0.4); }
+.legend-box.heat-5 { background: rgba(0, 229, 255, 0.85); border-color: var(--cyan); box-shadow: 0 0 16px rgba(0, 229, 255, 0.6); }
 .members-list { margin-top: 20px; max-height: 300px; overflow-y: auto; }
 .member-item {
     padding: 10px;
