@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Star Citizen Org Availability | SW-AVAIL v3.2</title>
+<title>Star Citizen Org Availability | SW-AVAIL</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -75,21 +75,10 @@
     margin-bottom: 4px;
   }
  .subtitle { color: var(--text-dim); font-size: 13px; letter-spacing: 2px; text-transform: uppercase; }
- .header-controls { position: absolute; top: 20px; right: 24px; display: flex; gap: 12px; align-items: center; }
- .tz-toggle {
-    padding: 6px 14px;
-    background: rgba(0, 0, 0, 0.4);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    color: var(--text);
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
- .tz-toggle:hover { border-color: var(--cyan); background: rgba(0, 229, 255, 0.1); }
  .connection-status {
+    position: absolute;
+    top: 20px;
+    right: 24px;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -102,18 +91,6 @@
  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 8px currentColor; animation: pulse 2s ease-in-out infinite; }
  .status-dot.connected { background: var(--ok); }
   @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
- .tz-label {
-    text-align: center;
-    padding: 8px;
-    background: rgba(0, 229, 255, 0.08);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    margin-bottom: 16px;
-    font-size: 12px;
-    color: var(--cyan);
-    font-weight: 600;
-    letter-spacing: 1px;
-  }
  .layout { display: grid; grid-template-columns: 320px 1fr; gap: 24px; align-items: start; }
   @media (max-width: 1024px) {.layout { grid-template-columns: 1fr; } }
  .panel {
@@ -284,12 +261,11 @@
     transition: opacity 0.2s;
     z-index: 1000;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 229, 255, 0.3);
-    max-width: 300px;
+    max-width: 250px;
   }
  .tooltip.visible { opacity: 1; }
  .tooltip-title { color: var(--cyan); font-weight: 700; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; }
  .tooltip-list { color: var(--text-dim); line-height: 1.6; }
- .tooltip-tz { font-size: 10px; color: var(--text-dim); margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--border); }
  .legend { display: flex; gap: 16px; align-items: center; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 11px; }
  .legend-item { display: flex; align-items: center; gap: 6px; }
  .legend-box { width: 20px; height: 20px; border: 1px solid var(--grid); border-radius: 2px; }
@@ -324,27 +300,36 @@
   <header>
     <h1>SW-AVAIL</h1>
     <div class="subtitle">Star Citizen Org Availability Grid</div>
-    <div class="header-controls">
-      <button class="tz-toggle" id="tzToggle">Local</button>
-      <div class="connection-status">
-        <div class="status-dot" id="statusDot"></div>
-        <span id="statusText">Connecting...</span>
-      </div>
+    <div class="connection-status">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">Connecting...</span>
     </div>
   </header>
 
   <div class="layout">
     <aside class="panel">
       <div class="panel-title">Member Control</div>
+
       <div class="stats">
-        <div class="stat-card"><div class="stat-value" id="statMembers">0</div><div class="stat-label">Members</div></div>
-        <div class="stat-card"><div class="stat-value" id="statSlots">0</div><div class="stat-label">Slots</div></div>
-        <div class="stat-card"><div class="stat-value" id="statPeak">0</div><div class="stat-label">Peak</div></div>
+        <div class="stat-card">
+          <div class="stat-value" id="statMembers">0</div>
+          <div class="stat-label">Members</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="statSlots">0</div>
+          <div class="stat-label">Slots</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="statPeak">0</div>
+          <div class="stat-label">Peak</div>
+        </div>
       </div>
 
       <div class="member-select">
         <label>Active Member</label>
-        <select id="memberSelect"><option value="">-- Select Member --</option></select>
+        <select id="memberSelect">
+          <option value="">-- Select Member --</option>
+        </select>
         <div class="current-member" id="currentMember" style="display:none;">
           <span id="currentMemberName"></span>
           <button class="delete-btn" id="clearSelection" title="Clear Selection">✕</button>
@@ -356,8 +341,9 @@
           <label>Callsign</label>
           <input type="text" id="callsign" placeholder="Enter SC Handle" required>
         </div>
+
         <div class="form-group">
-          <label>Your Timezone</label>
+          <label>Timezone</label>
           <select id="timezone">
             <option value="America/New_York">EST / EDT</option>
             <option value="America/Chicago">CST / CDT</option>
@@ -370,6 +356,7 @@
             <option value="Australia/Sydney">AEST / AEDT</option>
           </select>
         </div>
+
         <div class="form-group">
           <label>Primary Roles</label>
           <div class="roles-grid">
@@ -381,16 +368,20 @@
             <label class="role-checkbox"><input type="checkbox" value="Medical"> Medical</label>
             <label class="role-checkbox"><input type="checkbox" value="Support"> Support</label>
           </div>
+        </div>
+
         <button type="submit" class="btn">Add Member</button>
         <button type="button" class="btn btn-secondary" id="clearAllBtn">Clear All Slots</button>
       </form>
 
       <div class="filters">
         <div class="panel-title">Filters</div>
+
         <div class="filter-group">
           <label>Search Callsign</label>
           <input type="text" id="searchCallsign" placeholder="Filter by name...">
         </div>
+
         <div class="filter-group">
           <label>Filter by Role</label>
           <select id="roleFilter">
@@ -404,22 +395,47 @@
             <option value="Support">Support</option>
           </select>
         </div>
+      </div>
+
       <div class="members-list" id="membersList"></div>
+
+      <div class="filters">
+        <div class="panel-title">Admin</div>
+        <button type="button" class="btn btn-secondary" id="migrateBtn">Migrate Legacy Data</button>
+        <div id="migrateStatus" style="font-size:11px; color:var(--text-dim); margin-top:8px;"></div>
+      </div>
     </aside>
 
     <main class="panel">
       <div class="panel-title">Global Availability Heatmap</div>
-      <div class="tz-label" id="tzLabel">Loading timezone...</div>
       <div class="calendar-wrapper">
         <div class="calendar-grid" id="calendarGrid"></div>
       </div>
       <div class="legend">
-        <div class="legend-item"><div class="legend-box heat-0"></div><span>0</span></div>
-        <div class="legend-item"><div class="legend-box heat-1"></div><span>1-2</span></div>
-        <div class="legend-item"><div class="legend-box heat-2"></div><span>3-4</span></div>
-        <div class="legend-item"><div class="legend-box heat-3"></div><span>5-7</span></div>
-        <div class="legend-item"><div class="legend-box heat-4"></div><span>8-10</span></div>
-        <div class="legend-item"><div class="legend-box heat-5"></div><span>11+</span></div>
+        <div class="legend-item">
+          <div class="legend-box heat-0"></div>
+          <span>0</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-box heat-1"></div>
+          <span>1-2</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-box heat-2"></div>
+          <span>3-4</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-box heat-3"></div>
+          <span>5-7</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-box heat-4"></div>
+          <span>8-10</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-box heat-5"></div>
+          <span>11+</span>
+        </div>
       </div>
     </main>
   </div>
@@ -429,7 +445,7 @@
 
 <script type="module">
   import { initializeApp } from 'firebase/app';
-  import { getDatabase, ref, onValue, remove, set } from 'firebase/database';
+  import { getDatabase, ref, onValue, remove, set, get, update } from 'firebase/database';
 
   const firebaseConfig = {
     apiKey: "AIzaSyDhllHPfEqOrvlpe1i31-2sTbLsUVWdADk",
@@ -444,8 +460,6 @@
   const db = getDatabase(app);
 
   const VIEWER_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  let displayMode = 'local';
-
   const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const HOURS = Array.from({length: 12}, (_, i) => i * 2);
 
@@ -465,34 +479,28 @@
     return sunday;
   }
 
-  function updateTZLabel() {
-    const label = document.getElementById('tzLabel');
-    if (!label) return;
-    if (displayMode === 'local') {
-      label.textContent = `Times shown in ${VIEWER_TZ}`;
-    } else {
-      label.textContent = `Times shown in UTC (Star Citizen Game Time)`;
-    }
-  }
-
   function gridToUTC(dayIdx, hourBlock) {
     const weekStart = getWeekStart();
     const targetDate = new Date(weekStart);
     targetDate.setDate(weekStart.getDate() + dayIdx);
-    targetDate.setHours(hourBlock, 0, 0, 0);
-
-    if (displayMode === 'local') {
-      const year = targetDate.getFullYear();
-      const month = String(targetDate.getMonth() + 1).padStart(2, '0');
-      const day = String(targetDate.getDate()).padStart(2, '0');
-      const hour = String(hourBlock).padStart(2, '0');
-      const dateStr = `${year}-${month}-${day}T${hour}:00:00`;
-      const localDate = new Date(dateStr);
-      const utcString = new Date(localDate.toLocaleString('en-US', { timeZone: VIEWER_TZ })).toISOString();
-      return new Date(new Date(utcString).getTime() + (localDate.getTime() - new Date(localDate.toLocaleString('en-US', { timeZone: VIEWER_TZ })).getTime())).toISOString();
-    }
-    return new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), hourBlock)).toISOString();
+    const year = targetDate.getFullYear();
+    const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const day = String(targetDate.getDate()).padStart(2, '0');
+    const hour = String(hourBlock).padStart(2, '0');
+    const localStr = `${year}-${month}-${day}T${hour}:00:00`;
+    const localDate = new Date(localStr);
+    return new Date(localDate.getTime() - (localDate.getTimezoneOffset() * 60000)).toISOString();
   }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    buildGrid();
+    initFirebase();
+    attachEventListeners();
+    const tzSelect = document.getElementById('timezone');
+    if (tzSelect && tzSelect.querySelector(`option[value="${VIEWER_TZ}"]`)) {
+      tzSelect.value = VIEWER_TZ;
+    }
+  });
 
   function buildGrid() {
     const grid = document.getElementById('calendarGrid');
@@ -516,9 +524,9 @@
       HOURS.forEach((hour) => {
         const slot = document.createElement('div');
         slot.className = 'slot';
-        slot.dataset.dayIdx = dayIdx;
-        slot.dataset.hour = hour;
         slot.dataset.day = day;
+        slot.dataset.hour = hour;
+        slot.dataset.dayIdx = dayIdx;
         grid.appendChild(slot);
       });
     });
@@ -613,13 +621,66 @@
       roleFilter = e.target.value;
       updateUI();
     });
-    document.getElementById('tzToggle')?.addEventListener('click', () => {
-      displayMode = displayMode === 'local'? 'utc' : 'local';
-      document.getElementById('tzToggle').textContent = displayMode === 'local'? 'Local' : 'UTC';
-      updateTZLabel();
-      buildGrid();
-      updateHeatmap();
-    });
+    document.getElementById('migrateBtn')?.addEventListener('click', migrateLegacyData);
+  }
+
+  async function migrateLegacyData() {
+    const status = document.getElementById('migrateStatus');
+    const btn = document.getElementById('migrateBtn');
+    if (!status ||!btn) return;
+
+    btn.disabled = true;
+    status.textContent = 'Scanning for legacy data...';
+
+    try {
+      const snapshot = await get(ref(db, 'orgs/sw-avail/members'));
+      const members = snapshot.val() || {};
+      let totalMigrated = 0;
+      let membersProcessed = 0;
+
+      const dayMap = { 'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6 };
+      const weekStart = getWeekStart();
+
+      for (const [callsign, member] of Object.entries(members)) {
+        if (!member.slots) continue;
+
+        const updates = {};
+        const removals = {};
+        let memberMigrated = 0;
+
+        for (const [key, value] of Object.entries(member.slots)) {
+          if (key.includes('_') &&!key.includes('T')) {
+            const [dayStr, hourStr] = key.split('_');
+            const dayIdx = dayMap[dayStr];
+            const hour = parseInt(hourStr);
+
+            if (dayIdx!== undefined &&!isNaN(hour)) {
+              const targetDate = new Date(weekStart);
+              targetDate.setDate(weekStart.getDate() + dayIdx);
+              targetDate.setHours(hour, 0, 0, 0);
+              const utcKey = new Date(targetDate.getTime() - (targetDate.getTimezoneOffset() * 60000)).toISOString();
+
+              updates[`orgs/sw-avail/members/${callsign}/slots/${utcKey}`] = true;
+              removals[`orgs/sw-avail/members/${callsign}/slots/${key}`] = null;
+              memberMigrated++;
+            }
+          }
+        }
+
+        if (memberMigrated > 0) {
+          await update(ref(db), updates);
+          await update(ref(db), removals);
+          totalMigrated += memberMigrated;
+          membersProcessed++;
+        }
+      }
+
+      status.textContent = `Done! Migrated ${totalMigrated} slots for ${membersProcessed} members. Refresh to see changes.`;
+      btn.disabled = false;
+    } catch (error) {
+      status.textContent = `Error: ${error.message}`;
+      btn.disabled = false;
+    }
   }
 
   function handleAddMember(e) {
@@ -735,22 +796,10 @@
           try {
             const date = new Date(utcKey);
             if (isNaN(date)) return;
-
-            const targetTZ = displayMode === 'local'? VIEWER_TZ : 'UTC';
-            const formatter = new Intl.DateTimeFormat('en-US', {
-              timeZone: targetTZ,
-              weekday: 'short',
-              hour: 'numeric',
-              hour12: false
-            });
-            const parts = formatter.formatToParts(date);
-            const day = parts.find(p => p.type === 'weekday').value;
-            const hour = Math.floor(parseInt(parts.find(p => p.type === 'hour').value) / 2) * 2;
-
+            const day = DAYS[date.getDay()];
+            const hour = Math.floor(date.getHours() / 2) * 2;
             const gridKey = `${day}_${hour}`;
-            if (!slotMap.has(gridKey)) {
-              slotMap.set(gridKey, []);
-            }
+            if (!slotMap.has(gridKey)) slotMap.set(gridKey, []);
             slotMap.get(gridKey).push(member.callsign);
           } catch (e) {}
         });
@@ -761,7 +810,6 @@
       const day = slot.dataset.day;
       const hour = slot.dataset.hour;
       if (!day || hour === undefined) return;
-
       const gridKey = `${day}_${hour}`;
       const availableMembers = slotMap.get(gridKey) || [];
       const count = availableMembers.length;
@@ -792,10 +840,8 @@
     const count = parseInt(slotEl.dataset.count || 0);
     const members = slotEl.dataset.members;
     if (!day || isNaN(hour)) return;
-
     const endHour = hour + 2;
     const timeStr = `${String(hour).padStart(2, '0')}:00-${String(endHour).padStart(2, '0')}:00`;
-
     tooltipEl.innerHTML = `
       <div class="tooltip-title">${day} ${timeStr}</div>
       <div class="tooltip-list">
@@ -811,12 +857,10 @@
     const statSlots = document.getElementById('statSlots');
     const statPeak = document.getElementById('statPeak');
     if (!statMembers ||!statSlots ||!statPeak) return;
-
     const memberCount = Object.keys(membersData).length;
     let totalSlots = 0;
     let peakCount = 0;
     const heatmap = {};
-
     Object.values(membersData).forEach(member => {
       if (member.slots) {
         Object.keys(member.slots).forEach(slotKey => {
@@ -826,22 +870,10 @@
         });
       }
     });
-
     statMembers.textContent = memberCount;
     statSlots.textContent = totalSlots;
     statPeak.textContent = peakCount;
   }
-
-  document.addEventListener('DOMContentLoaded', () => {
-    buildGrid();
-    initFirebase();
-    attachEventListeners();
-    updateTZLabel();
-    const tzSelect = document.getElementById('timezone');
-    if (tzSelect && tzSelect.querySelector(`option[value="${VIEWER_TZ}"]`)) {
-      tzSelect.value = VIEWER_TZ;
-    }
-  });
 </script>
 </body>
 </html>
