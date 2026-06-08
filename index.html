@@ -75,10 +75,28 @@
     margin-bottom: 4px;
   }
 .subtitle { color: var(--text-dim); font-size: 13px; letter-spacing: 2px; text-transform: uppercase; }
-.connection-status {
+.header-controls {
     position: absolute;
     top: 20px;
     right: 24px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+.tz-toggle {
+    padding: 6px 14px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    color: var(--text);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+.tz-toggle:hover { border-color: var(--cyan); background: rgba(0, 229, 255, 0.1); }
+.connection-status {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -91,6 +109,18 @@
 .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 8px currentColor; animation: pulse 2s ease-in-out infinite; }
 .status-dot.connected { background: var(--ok); }
   @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+.tz-label {
+    text-align: center;
+    padding: 8px;
+    background: rgba(0, 229, 255, 0.08);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin-bottom: 16px;
+    font-size: 12px;
+    color: var(--cyan);
+    font-weight: 600;
+    letter-spacing: 1px;
+  }
 .layout { display: grid; grid-template-columns: 320px 1fr; gap: 24px; align-items: start; }
   @media (max-width: 1024px) {.layout { grid-template-columns: 1fr; } }
 .panel {
@@ -300,9 +330,12 @@
   <header>
     <h1>SW-AVAIL</h1>
     <div class="subtitle">Star Citizen Org Availability Grid</div>
-    <div class="connection-status">
-      <div class="status-dot" id="statusDot"></div>
-      <span id="statusText">Connecting...</span>
+    <div class="header-controls">
+      <button class="tz-toggle" id="tzToggle">Local</button>
+      <div class="connection-status">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusText">Connecting...</span>
+      </div>
     </div>
   </header>
 
@@ -390,6 +423,7 @@
 
     <main class="panel">
       <div class="panel-title">Global Availability Heatmap</div>
+      <div class="tz-label" id="tzLabel">Loading timezone...</div>
       <div class="calendar-wrapper">
         <div class="calendar-grid" id="calendarGrid"></div>
       </div>
@@ -424,6 +458,7 @@
   const db = getDatabase(app);
 
   const VIEWER_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  let displayMode = 'local';
   const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const HOURS = Array.from({length: 12}, (_, i) => i * 2);
 
@@ -434,7 +469,7 @@
   let searchFilter = '';
   let roleFilter = '';
 
-  function getWeekStart() {
+  function getWeekStartLocal() {
     const now = new Date();
     const day = now.getDay();
     const diff = now.getDate() - day;
@@ -443,18 +478,46 @@
     return sunday;
   }
 
-  function gridToKey(dayIdx, hourBlock) {
-    const weekStart = getWeekStart();
-    const targetDate = new Date(weekStart);
-    targetDate.setDate(weekStart.getDate() + dayIdx);
-    targetDate.setHours(hourBlock, 0, 0, 0);
-    return String(targetDate.getTime());
+  function getWeekStartUTC() {
+    const now = new Date();
+    const day = now.getUTCDay();
+    const diff = now.getUTCDate() - day;
+    const sunday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), diff));
+    sunday.setUTCHours(0, 0, 0, 0);
+    return sunday;
+  }
+
+  function updateTZLabel() {
+    const label = document.getElementById('tzLabel');
+    if (!label) return;
+    if (displayMode === 'local') {
+      label.textContent = `Times shown in ${VIEWER_TZ}`;
+    } else {
+      label.textContent = `Times shown in UTC (Star Citizen Game Time)`;
+    }
+  }
+
+  function getCellTimestamp(dayIdx, hourBlock) {
+    if (displayMode === 'local') {
+      const weekStart = getWeekStartLocal();
+      const d = new Date(weekStart);
+      d.setDate(weekStart.getDate() + dayIdx);
+      d.setHours(hourBlock, 0, 0, 0);
+      return d.getTime();
+    } else {
+      const weekStart = getWeekStartUTC();
+      const d = new Date(weekStart);
+      d.setUTCDate(weekStart.getUTCDate() + dayIdx);
+      d.setUTCHours(hourBlock, 0, 0, 0);
+      return d.getTime();
+    }
   }
 
   document.addEventListener('DOMContentLoaded', () => {
     buildGrid();
     initFirebase();
     attachEventListeners();
+    updateTZLabel();
     const tzSelect = document.getElementById('timezone');
     if (tzSelect && tzSelect.querySelector(`option[value="${VIEWER_TZ}"]`)) {
       tzSelect.value = VIEWER_TZ;
@@ -519,7 +582,7 @@
       isDragging = true;
       const dayIdx = parseInt(e.target.dataset.dayIdx);
       const hour = parseInt(e.target.dataset.hour);
-      const key = gridToKey(dayIdx, hour);
+      const key = String(getCellTimestamp(dayIdx, hour));
       const currentState = membersData[selectedMember]?.slots?.[key] || false;
       dragMode = currentState? 'remove' : 'add';
       toggleSlot(e.target, dragMode === 'add');
@@ -581,51 +644,49 @@
       updateUI();
     });
     document.getElementById('migrateBtn')?.addEventListener('click', migrateLegacyData);
+    document.getElementById('tzToggle')?.addEventListener('click', () => {
+      displayMode = displayMode === 'local'? 'utc' : 'local';
+      document.getElementById('tzToggle').textContent = displayMode === 'local'? 'Local' : 'UTC';
+      updateTZLabel();
+      buildGrid();
+      updateHeatmap();
+    });
   }
 
   async function migrateLegacyData() {
     const status = document.getElementById('migrateStatus');
     const btn = document.getElementById('migrateBtn');
     if (!status ||!btn) return;
-
     btn.disabled = true;
     status.textContent = 'Scanning for legacy data...';
-
     try {
       const snapshot = await get(ref(db, 'orgs/sw-avail/members'));
       const members = snapshot.val() || {};
       let totalMigrated = 0;
       let membersProcessed = 0;
-
       const dayMap = { 'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6 };
-      const weekStart = getWeekStart();
-
+      const weekStart = getWeekStartLocal();
       for (const [callsign, member] of Object.entries(members)) {
         if (!member.slots) continue;
-
         const updates = {};
         const removals = {};
         let memberMigrated = 0;
-
         for (const [key, value] of Object.entries(member.slots)) {
           if (key.includes('_') &&!/^\d+$/.test(key)) {
             const [dayStr, hourStr] = key.split('_');
             const dayIdx = dayMap[dayStr];
             const hour = parseInt(hourStr);
-
             if (dayIdx!== undefined &&!isNaN(hour)) {
-              const targetDate = new Date(weekStart);
-              targetDate.setDate(weekStart.getDate() + dayIdx);
-              targetDate.setHours(hour, 0, 0, 0);
-              const newKey = String(targetDate.getTime());
-
+              const d = new Date(weekStart);
+              d.setDate(weekStart.getDate() + dayIdx);
+              d.setHours(hour, 0, 0, 0);
+              const newKey = String(d.getTime());
               updates[`orgs/sw-avail/members/${callsign}/slots/${newKey}`] = true;
               removals[`orgs/sw-avail/members/${callsign}/slots/${key}`] = null;
               memberMigrated++;
             }
           }
         }
-
         if (memberMigrated > 0) {
           await update(ref(db), updates);
           await update(ref(db), removals);
@@ -633,8 +694,7 @@
           membersProcessed++;
         }
       }
-
-      status.textContent = `Done! Migrated ${totalMigrated} slots for ${membersProcessed} members. Refresh to see changes.`;
+      status.textContent = `Done! Migrated ${totalMigrated} slots for ${membersProcessed} members.`;
       btn.disabled = false;
     } catch (error) {
       status.textContent = `Error: ${error.message}`;
@@ -667,7 +727,7 @@
     const dayIdx = parseInt(slotEl.dataset.dayIdx);
     const hour = parseInt(slotEl.dataset.hour);
     if (isNaN(dayIdx) || isNaN(hour)) return;
-    const key = gridToKey(dayIdx, hour);
+    const key = String(getCellTimestamp(dayIdx, hour));
     const slotRef = ref(db, `orgs/sw-avail/members/${selectedMember}/slots/${key}`);
     if (shouldAdd) {
       set(slotRef, true);
@@ -749,19 +809,16 @@
     Object.values(membersData).forEach(member => {
       if (searchFilter &&!member.callsign.toLowerCase().includes(searchFilter)) return;
       if (roleFilter &&!(member.roles || []).includes(roleFilter)) return;
-
       if (member.slots) {
         Object.keys(member.slots).forEach(key => {
-          try {
-            const timestamp = parseInt(key);
-            if (isNaN(timestamp)) return;
-            const date = new Date(timestamp);
-            const day = DAYS[date.getDay()];
-            const hour = Math.floor(date.getHours() / 2) * 2;
-            const gridKey = `${day}_${hour}`;
-            if (!slotMap.has(gridKey)) slotMap.set(gridKey, []);
-            slotMap.get(gridKey).push(member.callsign);
-          } catch (e) {}
+          const ts = parseInt(key);
+          if (isNaN(ts)) return;
+          const date = new Date(ts);
+          const day = displayMode === 'local'? DAYS[date.getDay()] : DAYS[date.getUTCDay()];
+          const hour = displayMode === 'local'? Math.floor(date.getHours() / 2) * 2 : Math.floor(date.getUTCHours() / 2) * 2;
+          const gridKey = `${day}_${hour}`;
+          if (!slotMap.has(gridKey)) slotMap.set(gridKey, []);
+          slotMap.get(gridKey).push(member.callsign);
         });
       }
     });
@@ -773,21 +830,17 @@
       const gridKey = `${day}_${hour}`;
       const availableMembers = slotMap.get(gridKey) || [];
       const count = availableMembers.length;
-
       slot.className = 'slot';
       if (selectedMember) slot.classList.add('editable');
-
       if (count === 0) slot.classList.add('heat-0');
       else if (count <= 2) slot.classList.add('heat-1');
       else if (count <= 4) slot.classList.add('heat-2');
       else if (count <= 7) slot.classList.add('heat-3');
       else if (count <= 10) slot.classList.add('heat-4');
       else slot.classList.add('heat-5');
-
       if (selectedMember && availableMembers.includes(selectedMember)) {
         slot.classList.add('selected');
       }
-
       slot.dataset.count = count;
       slot.dataset.members = availableMembers.join(', ');
     });
