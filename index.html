@@ -1,1084 +1,600 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Star Citizen Org Availability | SW-AVAIL</title>
-<script type="importmap">
-{
-  "imports": {
-    "firebase/app": "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js",
-    "firebase/database": "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js"
-  }
-}
-</script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SW-AVAIL v3.2 • Live Preview — Timezone-Aware Availability Heatmap</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #020509;
-    --panel: #0a1018;
-    --panel-2: #0e1620;
-    --cyan: #00e5ff;
-    --cyan-dim: #00b8d4;
-    --blue: #2979ff;
-    --text: #c8e7ff;
-    --text-dim: #7aa3c4;
-    --border: rgba(0, 229, 255, 0.25);
-    --danger: #ff4455;
-    --ok: #00e676;
-    --grid: rgba(0, 229, 255, 0.08);
-    --shadow: 0 8px 32px rgba(0, 229, 255, 0.12);
-  }
-
-  * {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-  }
-
-  body {
-    font-family: 'Rajdhani', 'Segoe UI', system-ui, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    overflow-x: hidden;
-    background-image: 
-      radial-gradient(circle at 15% 50%, rgba(0, 229, 255, 0.08) 0%, transparent 50%),
-      radial-gradient(circle at 85% 30%, rgba(41, 121, 255, 0.08) 0%, transparent 50%),
-      linear-gradient(180deg, var(--bg) 0%, #000308 100%);
-  }
-
-  @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Orbitron:wght@400;700;900&display=swap');
-
-  .container {
-    max-width: 1600px;
-    margin: 0 auto;
-    padding: 20px;
-  }
-
-  header {
-    background: linear-gradient(135deg, var(--panel) 0%, var(--panel-2) 100%);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 20px 24px;
-    margin-bottom: 24px;
-    box-shadow: var(--shadow), inset 0 1px 0 rgba(0, 229, 255, 0.1);
-    position: relative;
-    overflow: hidden;
-  }
-
-  header::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
-    animation: scanline 3s linear infinite;
-  }
-
-  @keyframes scanline {
-    to { left: 100%; }
-  }
-
-  h1 {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 28px;
-    font-weight: 900;
-    letter-spacing: 3px;
-    color: var(--cyan);
-    text-shadow: 0 0 20px rgba(0, 229, 255, 0.6);
-    margin-bottom: 4px;
-  }
-
-  .subtitle {
-    color: var(--text-dim);
-    font-size: 13px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-  }
-
-  .connection-status {
-    position: absolute;
-    top: 20px;
-    right: 24px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    padding: 6px 14px;
-    border-radius: 20px;
-    border: 1px solid var(--border);
-    background: rgba(0, 0, 0, 0.4);
-  }
-
-  .status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--danger);
-    box-shadow: 0 0 8px currentColor;
-    animation: pulse 2s ease-in-out infinite;
-  }
-
-  .status-dot.connected {
-    background: var(--ok);
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
-  }
-
-  .layout {
-    display: grid;
-    grid-template-columns: 320px 1fr;
-    gap: 24px;
-    align-items: start;
-  }
-
-  @media (max-width: 1024px) {
-    .layout {
-      grid-template-columns: 1fr;
-    }
-  }
-
-  .panel {
-    background: linear-gradient(135deg, var(--panel) 0%, var(--panel-2) 100%);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 20px;
-    box-shadow: var(--shadow);
-    position: relative;
-  }
-
-  .panel-title {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--cyan);
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    margin-bottom: 16px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .panel-title::before {
-    content: '▶';
-    font-size: 10px;
-    color: var(--cyan-dim);
-  }
-
-  .form-group {
-    margin-bottom: 16px;
-  }
-
-  label {
-    display: block;
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--text-dim);
-    margin-bottom: 6px;
-  }
-
-  input[type="text"], select {
-    width: 100%;
-    padding: 10px 12px;
-    background: rgba(0, 0, 0, 0.4);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--text);
-    font-family: inherit;
-    font-size: 14px;
-    transition: all 0.2s;
-  }
-
-  input[type="text"]:focus, select:focus {
-    outline: none;
-    border-color: var(--cyan);
-    box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.1), inset 0 0 20px rgba(0, 229, 255, 0.05);
-  }
-
-  .roles-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-
-  .role-checkbox {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px;
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 13px;
-  }
-
-  .role-checkbox:hover {
-    border-color: var(--cyan-dim);
-    background: rgba(0, 229, 255, 0.05);
-  }
-
-  .role-checkbox input[type="checkbox"] {
-    accent-color: var(--cyan);
-    cursor: pointer;
-  }
-
-  .btn {
-    width: 100%;
-    padding: 12px;
-    background: linear-gradient(135deg, var(--cyan-dim) 0%, var(--blue) 100%);
-    border: none;
-    border-radius: 4px;
-    color: var(--bg);
-    font-family: 'Orbitron', sans-serif;
-    font-size: 13px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    cursor: pointer;
-    transition: all 0.2s;
-    box-shadow: 0 4px 16px rgba(0, 229, 255, 0.3);
-  }
-
-  .btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 24px rgba(0, 229, 255, 0.5);
-  }
-
-  .btn:active {
-    transform: translateY(0);
-  }
-
-  .btn-secondary {
-    background: rgba(0, 0, 0, 0.4);
-    border: 1px solid var(--border);
-    color: var(--text);
-    box-shadow: none;
-    margin-top: 8px;
-  }
-
-  .btn-secondary:hover {
-    background: rgba(0, 229, 255, 0.1);
-    border-color: var(--cyan);
-  }
-
-  .member-select {
-    margin-bottom: 16px;
-  }
-
-  .current-member {
-    padding: 12px;
-    background: rgba(0, 229, 255, 0.08);
-    border: 1px solid var(--cyan);
-    border-radius: 4px;
-    font-size: 14px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .filters {
-    margin-top: 20px;
-    padding-top: 20px;
-    border-top: 1px solid var(--border);
-  }
-
-  .filter-group {
-    margin-bottom: 12px;
-  }
-
-  .calendar-wrapper {
-    overflow-x: auto;
-    padding: 4px;
-  }
-
-  .calendar-grid {
-    display: grid;
-    grid-template-columns: 80px repeat(12, 1fr);
-    gap: 2px;
-    min-width: 900px;
-  }
-
-  .grid-header {
-    background: var(--panel-2);
-    border: 1px solid var(--border);
-    padding: 12px 8px;
-    text-align: center;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--cyan);
-  }
-
-  .grid-header.time {
-    position: sticky;
-    left: 0;
-    z-index: 2;
-    background: var(--panel);
-  }
-
-  .day-label {
-    background: var(--panel-2);
-    border: 1px solid var(--border);
-    padding: 12px 8px;
-    font-size: 13px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: sticky;
-    left: 0;
-    z-index: 1;
-  }
-
-  .slot {
-    aspect-ratio: 1.2;
-    background: rgba(0, 0, 0, 0.4);
-    border: 1px solid var(--grid);
-    cursor: pointer;
-    position: relative;
-    transition: all 0.15s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 10px;
-    font-weight: 700;
-    user-select: none;
-  }
-
-  .slot:hover {
-    border-color: var(--cyan);
-    box-shadow: inset 0 0 20px rgba(0, 229, 255, 0.2);
-    z-index: 10;
-    transform: scale(1.05);
-  }
-
-  .slot.editable:active {
-    transform: scale(0.95);
-  }
-
-  .slot.heat-0 { background: rgba(0, 0, 0, 0.4); }
-  .slot.heat-1 { background: rgba(0, 229, 255, 0.15); border-color: rgba(0, 229, 255, 0.3); }
-  .slot.heat-2 { background: rgba(0, 229, 255, 0.3); border-color: rgba(0, 229, 255, 0.5); }
-  .slot.heat-3 { background: rgba(0, 229, 255, 0.5); border-color: rgba(0, 229, 255, 0.7); }
-  .slot.heat-4 { background: rgba(0, 229, 255, 0.7); border-color: var(--cyan); box-shadow: 0 0 12px rgba(0, 229, 255, 0.4); }
-  .slot.heat-5 { background: rgba(0, 229, 255, 0.85); border-color: var(--cyan); box-shadow: 0 0 16px rgba(0, 229, 255, 0.6); }
-
-  .slot.selected {
-    background: linear-gradient(135deg, var(--cyan) 0%, var(--blue) 100%) !important;
-    border-color: var(--cyan) !important;
-    box-shadow: 0 0 20px rgba(0, 229, 255, 0.8), inset 0 0 10px rgba(255, 255, 255, 0.3) !important;
-  }
-
-  .tooltip {
-    position: fixed;
-    background: var(--panel);
-    border: 1px solid var(--cyan);
-    border-radius: 4px;
-    padding: 10px 14px;
-    font-size: 12px;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.2s;
-    z-index: 1000;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 229, 255, 0.3);
-    max-width: 250px;
-  }
-
-  .tooltip.visible {
-    opacity: 1;
-  }
-
-  .tooltip-title {
-    color: var(--cyan);
-    font-weight: 700;
-    margin-bottom: 6px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
-
-  .tooltip-list {
-    color: var(--text-dim);
-    line-height: 1.6;
-  }
-
-  .legend {
-    display: flex;
-    gap: 16px;
-    align-items: center;
-    margin-top: 16px;
-    padding-top: 16px;
-    border-top: 1px solid var(--border);
-    font-size: 11px;
-  }
-
-  .legend-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .legend-box {
-    width: 20px;
-    height: 20px;
-    border: 1px solid var(--grid);
-    border-radius: 2px;
-  }
-
-  .members-list {
-    margin-top: 20px;
-    max-height: 300px;
-    overflow-y: auto;
-  }
-
-  .member-item {
-    padding: 10px;
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    margin-bottom: 8px;
-    font-size: 13px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .member-item:hover {
-    border-color: var(--cyan-dim);
-    background: rgba(0, 229, 255, 0.05);
-  }
-
-  .member-roles {
-    font-size: 10px;
-    color: var(--text-dim);
-    margin-top: 4px;
-  }
-
-  .delete-btn {
-    background: none;
-    border: none;
-    color: var(--danger);
-    cursor: pointer;
-    font-size: 16px;
-    padding: 4px;
-    opacity: 0.6;
-    transition: opacity 0.2s;
-  }
-
-  .delete-btn:hover {
-    opacity: 1;
-  }
-
-  .stats {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    margin-bottom: 20px;
-  }
-
-  .stat-card {
-    background: rgba(0, 0, 0, 0.4);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 12px;
-    text-align: center;
-  }
-
-  .stat-value {
-    font-size: 24px;
-    font-weight: 700;
-    color: var(--cyan);
-    font-family: 'Orbitron', sans-serif;
-  }
-
-  .stat-label {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--text-dim);
-    margin-top: 4px;
-  }
-
-  ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-
-  ::-webkit-scrollbar-track {
-    background: var(--bg);
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background: var(--border);
-    border-radius: 4px;
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background: var(--cyan-dim);
-  }
+  :root { color-scheme: dark; }
+  * { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+  body { background: #020617; }
+  .glass { backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+  .grid-heat { grid-template-columns: 64px repeat(24, minmax(36px,1fr)); }
+  @media (max-width:768px){ .grid-heat { grid-template-columns: 52px repeat(24,42px); } }
+  .cell { transition: transform .12s ease, filter .12s ease, box-shadow .12s ease; }
+  .cell:hover { transform: translateY(-1px) scale(1.03); z-index:10; }
+  .cell.active { box-shadow: 0 0 0 2px rgba(56,189,248,.9), 0 0 20px rgba(56,189,248,.35); }
+  .shimmer { position:relative; overflow:hidden; }
+  .shimmer::after{ content:''; position:absolute; inset:0; background:linear-gradient(110deg,transparent 40%,rgba(255,255,255,.08) 50%,transparent 60%); transform:translateX(-100%); animation:shimmer 3s infinite; }
+  @keyframes shimmer{ 100%{ transform:translateX(100%); } }
+  .scrollbar::-webkit-scrollbar{ height:8px; width:8px; }
+  .scrollbar::-webkit-scrollbar-track{ background:#0f172a; }
+  .scrollbar::-webkit-scrollbar-thumb{ background:#334155; border-radius:999px; }
+  .toast{ animation:toast-in .3s ease; }
+  @keyframes toast-in{ from{ transform:translateY(8px); opacity:0 } to{ transform:translateY(0); opacity:1 } }
 </style>
 </head>
-<body>
-<div class="container">
-  <header>
-    <h1>SW-AVAIL</h1>
-    <div class="subtitle">Star Citizen Org Availability Grid</div>
-    <div class="connection-status">
-      <div class="status-dot" id="statusDot"></div>
-      <span id="statusText">Connecting...</span>
+<body class="min-h-screen bg-[#020617] text-slate-200 selection:bg-cyan-500/30">
+  <div class="fixed inset-0 -z-10">
+    <div class="absolute inset-0 bg-[radial-gradient(60%_60%_at_50%_-10%,rgba(56,189,248,0.15),transparent_60%),radial-gradient(40%_40%_at_100%_0%,rgba(139,92,246,0.12),transparent_50%),radial-gradient(40%_40%_at_0%_100%,rgba(16,185,129,0.10),transparent_50%)]"></div>
+    <div class="absolute inset-0 opacity-[0.04] mix-blend-soft-light" style="background-image:linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px); background-size:32px 32px"></div>
+  </div>
+
+  <!-- Header -->
+  <header class="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/70 glass">
+    <div class="max-w-[1400px] mx-auto px-4 md:px-6 py-3 flex items-center gap-4">
+      <div class="flex items-center gap-3">
+        <div class="size-9 rounded-xl bg-gradient-to-br from-cyan-400 to-violet-500 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="text-white">
+            <path d="M12 2v4M12 18v4M2 12h4M18 12h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="1.5"/>
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-baseline gap-2">
+            <h1 class="text-[15px] font-semibold tracking-tight">SW-AVAIL</h1>
+            <span class="mono text-[11px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">v3.2</span>
+            <span class="hidden sm:inline text-[11px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">LIVE PREVIEW</span>
+          </div>
+          <p class="text-[12px] text-slate-400 -mt-0.5">Timezone-aware team availability • Heatmap grid</p>
+        </div>
+      </div>
+
+      <div class="ml-auto flex items-center gap-2">
+        <button id="syncBtn" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5v4l3-3M20 12a8 8 0 11-3.1-6.3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Sync
+        </button>
+        <button id="exportBtn" class="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm">
+          Export
+        </button>
+        <button id="connectFirebaseBtn" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/15 border border-cyan-500/30 text-cyan-200 text-sm font-medium">
+          <span class="size-2 rounded-full bg-cyan-400 animate-pulse"></span>
+          Demo Mode
+        </button>
+      </div>
     </div>
   </header>
 
-  <div class="layout">
-    <aside class="panel">
-      <div class="panel-title">Member Control</div>
-      
-      <div class="stats">
-        <div class="stat-card">
-          <div class="stat-value" id="statMembers">0</div>
-          <div class="stat-label">Members</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value" id="statSlots">0</div>
-          <div class="stat-label">Slots</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value" id="statPeak">0</div>
-          <div class="stat-label">Peak</div>
-        </div>
-      </div>
-
-      <div class="member-select">
-        <label>Active Member</label>
-        <select id="memberSelect">
-          <option value="">-- Select Member --</option>
-        </select>
-        <div class="current-member" id="currentMember" style="display:none;">
-          <span id="currentMemberName"></span>
-          <button class="delete-btn" id="clearSelection" title="Clear Selection">✕</button>
-        </div>
-      </div>
-
-      <form id="addMemberForm">
-        <div class="form-group">
-          <label>Callsign</label>
-          <input type="text" id="callsign" placeholder="Enter SC Handle" required>
-        </div>
-        
-        <div class="form-group">
-          <label>Timezone</label>
-          <select id="timezone">
-            <option value="UTC">UTC</option>
-            <option value="EST">EST / EDT</option>
-            <option value="CST">CST / CDT</option>
-            <option value="MST">MST / MDT</option>
-            <option value="PST">PST / PDT</option>
-            <option value="GMT">GMT</option>
-            <option value="CET">CET / CEST</option>
-            <option value="JST">JST</option>
-            <option value="AEST">AEST / AEDT</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label>Primary Roles</label>
-          <div class="roles-grid">
-            <label class="role-checkbox"><input type="checkbox" value="Pilot"> Pilot</label>
-            <label class="role-checkbox"><input type="checkbox" value="Gunner"> Gunner</label>
-            <label class="role-checkbox"><input type="checkbox" value="Engineer"> Engineer</label>
-            <label class="role-checkbox"><input type="checkbox" value="FPS"> FPS</label>
-            <label class="role-checkbox"><input type="checkbox" value="Salvage"> Salvage</label>
-            <label class="role-checkbox"><input type="checkbox" value="Medical"> Medical</label>
-            <label class="role-checkbox"><input type="checkbox" value="Support"> Support</label>
+  <main class="max-w-[1400px] mx-auto px-4 md:px-6 py-6 md:py-8 space-y-6">
+    <!-- Status / Controls -->
+    <section class="grid lg:grid-cols-12 gap-4">
+      <div class="lg:col-span-8 grid sm:grid-cols-3 gap-3">
+        <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+          <div class="text-[11px] uppercase tracking-wide text-slate-500 font-medium">Detected Timezone</div>
+          <div class="mt-1 flex items-baseline gap-2">
+            <div id="tzName" class="text-[18px] font-semibold">—</div>
+            <div id="tzOffset" class="mono text-xs text-slate-400">UTC±00:00</div>
+          </div>
+          <div class="mt-2 flex items-center gap-2">
+            <button id="toggleTz" class="group relative inline-flex items-center rounded-full bg-slate-800 p-0.5 w-[220px] border border-slate-700">
+              <span class="absolute inset-y-0.5 left-0.5 w-[calc(50%-2px)] rounded-full bg-cyan-500 shadow-lg shadow-cyan-500/25 transition-transform duration-300" id="toggleKnob"></span>
+              <span class="relative z-10 flex-1 text-center text-xs font-medium py-1 text-slate-900">Local</span>
+              <span class="relative z-10 flex-1 text-center text-xs font-medium py-1 text-slate-300">UTC</span>
+            </button>
+            <span class="text-[11px] text-slate-500">Click to toggle</span>
           </div>
         </div>
 
-        <button type="submit" class="btn">Add Member</button>
-        <button type="button" class="btn btn-secondary" id="clearAllBtn">Clear All Slots</button>
-      </form>
-
-      <div class="filters">
-        <div class="panel-title">Filters</div>
-        
-        <div class="filter-group">
-          <label>Search Callsign</label>
-          <input type="text" id="searchCallsign" placeholder="Filter by name...">
+        <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+          <div class="text-[11px] uppercase tracking-wide text-slate-500 font-medium">Coverage</div>
+          <div class="mt-1 flex items-baseline gap-2">
+            <div id="coveragePct" class="text-[28px] font-semibold leading-none">0%</div>
+            <div class="text-xs text-emerald-400">▲ <span id="coverageDelta">+0%</span></div>
+          </div>
+          <div class="mt-3 h-1.5 rounded-full bg-slate-800 overflow-hidden">
+            <div id="coverageBar" class="h-full bg-gradient-to-r from-cyan-400 to-violet-500 w-[0%] transition-all duration-700"></div>
+          </div>
         </div>
 
-        <div class="filter-group">
-          <label>Filter by Role</label>
-          <select id="roleFilter">
-            <option value="">All Roles</option>
-            <option value="Pilot">Pilot</option>
-            <option value="Gunner">Gunner</option>
-            <option value="Engineer">Engineer</option>
-            <option value="FPS">FPS</option>
-            <option value="Salvage">Salvage</option>
-            <option value="Medical">Medical</option>
-            <option value="Support">Support</option>
-          </select>
+        <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+          <div class="text-[11px] uppercase tracking-wide text-slate-500 font-medium">Peak Overlap</div>
+          <div class="mt-1">
+            <div id="peakHour" class="text-[18px] font-semibold">—</div>
+            <div id="peakCount" class="text-xs text-slate-400 mt-0.5">0 people</div>
+          </div>
+          <div class="mt-3 flex -space-x-2" id="peakAvatars"></div>
         </div>
       </div>
 
-      <div class="members-list" id="membersList"></div>
-    </aside>
+      <div class="lg:col-span-4 rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900/80 to-slate-900/40 p-4 shimmer">
+        <div class="flex items-start justify-between">
+          <div>
+            <div class="text-[11px] uppercase tracking-wide text-slate-500 font-medium">Firebase Integration</div>
+            <h3 class="mt-1 font-semibold">Realtime sync ready</h3>
+            <p class="text-sm text-slate-400 mt-1 leading-relaxed">Firestore + Auth wired. Demo mode uses localStorage. Connect your project to enable multi-device sync.</p>
+          </div>
+          <div class="size-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="text-amber-300"><path d="M12 2l7 4v12l-7 4-7-4V6l7-4z" stroke="currentColor" stroke-width="1.2"/></svg>
+          </div>
+        <div class="mt-3 flex flex-wrap gap-2 text-[11px]">
+          <span class="px-2 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-300">firestore</span>
+          <span class="px-2 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-300">auth anonymous</span>
+          <span class="px-2 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-300">offline cache</span>
+        </div>
+      </div>
+    </section>
 
-    <main class="panel">
-      <div class="panel-title">Global Availability Heatmap</div>
-      <div class="calendar-wrapper">
-        <div class="calendar-grid" id="calendarGrid"></div>
+    <!-- Main grid -->
+    <section class="grid xl:grid-cols-[1fr_320px] gap-6">
+      <!-- Heatmap -->
+      <div class="rounded-2xl border border-slate-800 bg-slate-950/60 overflow-hidden">
+        <div class="flex items-center justify-between px-4 md:px-5 py-3 border-b border-slate-800 bg-slate-900/40">
+          <div class="flex items-center gap-3">
+            <h2 class="font-semibold">Availability Heatmap</h2>
+            <span class="hidden sm:inline text-xs px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300 mono" id="viewModeLabel">LOCAL • America/New_York</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="hidden md:flex items-center gap-1 text-[11px] text-slate-500">
+              <span class="size-2 rounded-full bg-slate-700"></span>0
+              <span class="size-2 rounded-full bg-cyan-900"></span>
+              <span class="size-2 rounded-full bg-cyan-700"></span>
+              <span class="size-2 rounded-full bg-cyan-500"></span>
+              <span class="size-2 rounded-full bg-emerald-400"></span>
+              max
+            </div>
+            <button id="clearSelection" class="text-xs px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700">Clear my slots</button>
+          </div>
+        </div>
+
+        <div class="scrollbar overflow-x-auto">
+          <div class="min-w-[1100px]">
+            <!-- Hour header -->
+            <div class="grid grid-heat items-center sticky top-0 z-20 bg-slate-950/95 backdrop-blur border-b border-slate-800">
+              <div class="h-10 flex items-center justify-end pr-2 text-[11px] text-slate-500 uppercase">Day</div>
+              <div id="hourHeader" class="contents"></div>
+            </div>
+
+            <!-- Rows -->
+            <div id="gridRows" class="divide-y divide-slate-800/70"></div>
+          </div>
+        </div>
+
+        <div class="px-4 md:px-5 py-3 border-t border-slate-800 bg-slate-900/30 flex flex-wrap items-center gap-3 text-xs text-slate-400">
+          <span class="inline-flex items-center gap-1.5"><span class="size-2 rounded-full bg-cyan-400"></span>Click or drag to set your availability</span>
+          <span class="hidden sm:inline">•</span>
+          <span>Shift+drag to erase</span>
+          <span class="hidden sm:inline">•</span>
+          <span>Data stored in UTC, displayed in <span id="displayTzInline" class="text-slate-200">local</span></span>
+        </div>
       </div>
-      <div class="legend">
-        <div class="legend-item">
-          <div class="legend-box heat-0"></div>
-          <span>0</span>
+
+      <!-- Sidebar -->
+      <aside class="space-y-4">
+        <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+          <div class="flex items-center justify-between">
+            <h3 class="font-semibold">Team Members</h3>
+            <button id="addMemberBtn" class="text-xs px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700">+ Add</button>
+          </div>
+          <div id="memberList" class="mt-3 space-y-2"></div>
         </div>
-        <div class="legend-item">
-          <div class="legend-box heat-1"></div>
-          <span>1-2</span>
+
+        <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+          <h3 class="font-semibold">Current User</h3>
+          <div class="mt-3 flex items-center gap-3">
+            <img id="currentAvatar" src="https://i.pravatar.cc/64?u=current" class="size-11 rounded-xl border border-slate-700" alt="">
+            <div>
+              <div id="currentName" class="font-medium leading-tight">You</div>
+              <div class="text-xs text-slate-400 mono" id="currentId">local-user</div>
+            </div>
+            <select id="userPicker" class="ml-auto text-xs bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5"></select>
+          </div>
+          <div class="mt-3 grid grid-cols-3 gap-2 text-center">
+            <div class="rounded-xl bg-slate-800/70 border border-slate-700 py-2">
+              <div class="text-[11px] text-slate-500 uppercase">Slots</div>
+              <div id="mySlots" class="text-lg font-semibold">0</div>
+            </div>
+            <div class="rounded-xl bg-slate-800/70 border border-slate-700 py-2">
+              <div class="text-[11px] text-slate-500 uppercase">Hours/wk</div>
+              <div id="myHours" class="text-lg font-semibold">0</div>
+            </div>
+            <div class="rounded-xl bg-slate-800/70 border border-slate-700 py-2">
+              <div class="text-[11px] text-slate-500 uppercase">Overlap</div>
+              <div id="myOverlap" class="text-lg font-semibold">0%</div>
+            </div>
+          </div>
         </div>
-        <div class="legend-item">
-          <div class="legend-box heat-2"></div>
-          <span>3-4</span>
+
+        <div class="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
+          <h4 class="text-amber-200 font-medium text-sm">Preview Notes</h4>
+          <ul class="mt-2 text-xs text-amber-100/80 space-y-1.5 list-disc list-inside">
+            <li>Automatic timezone detection via <span class="mono">Intl.DateTimeFormat</span></li>
+            <li>UTC is source of truth; toggle converts display</li>
+            <li>Heat intensity = # of members available</li>
+            <li>Firebase config is mocked; data persists to localStorage</li>
+          </ul>
         </div>
-        <div class="legend-item">
-          <div class="legend-box heat-3"></div>
-          <span>5-7</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-box heat-4"></div>
-          <span>8-10</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-box heat-5"></div>
-          <span>11+</span>
-        </div>
+      </aside>
+    </section>
+
+    <!-- Log -->
+    <section class="rounded-2xl border border-slate-800 bg-slate-950/60">
+      <div class="px-4 md:px-5 py-3 border-b border-slate-800 flex items-center justify-between">
+        <h3 class="font-semibold">Activity Log</h3>
+        <span class="text-xs text-slate-500 mono" id="logCount">0 events</span>
       </div>
-    </main>
+      <div id="log" class="max-h-[180px] overflow-auto scrollbar divide-y divide-slate-800/60 text-sm"></div>
+    </section>
+  </main>
+
+  <!-- Toast -->
+  <div id="toastContainer" class="fixed bottom-4 right-4 z-[100] space-y-2"></div>
+
+  <!-- Tooltip -->
+  <div id="tooltip" class="pointer-events-none fixed z-[90] hidden rounded-lg border border-slate-700 bg-slate-900/95 px-3 py-2 text-xs shadow-xl shadow-black/40 backdrop-blur">
+    <div id="tooltipTitle" class="font-medium text-slate-100"></div>
+    <div id="tooltipSub" class="text-slate-400"></div>
   </div>
-</div>
-
-<div class="tooltip" id="tooltip"></div>
 
 <script type="module">
-  import { initializeApp } from 'firebase/app';
-  import { getDatabase, ref, onValue, update, remove, set, get } from 'firebase/database';
-
+  // ----- Firebase (demo mode, no network calls) -----
   const firebaseConfig = {
-    apiKey: "AIzaSyDhllHPfEqOrvlpe1i31-2sTbLsUVWdADk",
-    authDomain: "sw-avail.firebaseapp.com",
-    projectId: "sw-avail",
-    storageBucket: "sw-avail.firebasestorage.app",
-    messagingSenderId: "581229265106",
-    appId: "1:581229265106:web:4f6138db2fa4fcba6aad0b"
+    apiKey: "DEMO_SWAVAIL_3_2",
+    authDomain: "sw-avail-demo.firebaseapp.com",
+    projectId: "sw-avail-demo",
+  };
+  let firebaseApp = null;
+  try {
+    const [{ initializeApp }] = await Promise.all([
+      import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js')
+    ]);
+    firebaseApp = initializeApp(firebaseConfig);
+    logEvent('Firebase initialized (demo config)', 'info');
+  } catch(e) {
+    logEvent('Firebase init skipped (offline preview)', 'warn');
+  }
+
+  // ----- Constants -----
+  const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const DAY_FULL = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const REF = { y:2024, m:0, d:1 }; // Monday Jan 1 2024
+  const STORAGE_KEY = 'swavail_v32_demo';
+
+  // ----- State -----
+  const state = {
+    tz: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+    view: 'local', // local | utc
+    users: [],
+    currentUserId: 'u0',
+    isPainting: false,
+    paintMode: 'add', // add | remove
+    mapping: null
   };
 
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
-  
-  const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const HOURS = Array.from({length: 12}, (_, i) => i * 2); // 00, 02, 04...22
-  
-  let membersData = {};
-  let selectedMember = null;
-  let isDragging = false;
-  let dragMode = null; // 'add' or 'remove'
-  let searchFilter = '';
-  let roleFilter = '';
-
-  // DOM Ready
-  document.addEventListener('DOMContentLoaded', () => {
-    buildGrid();
-    initFirebase();
-    attachEventListeners();
-  });
-
-  function buildGrid() {
-    const grid = document.getElementById('calendarGrid');
-    if (!grid) return;
-    
-    grid.innerHTML = '';
-    
-    // Empty corner
-    const corner = document.createElement('div');
-    corner.className = 'grid-header time';
-    corner.textContent = 'DAY/TIME';
-    grid.appendChild(corner);
-    
-    // Time headers
-    HOURS.forEach(h => {
-      const header = document.createElement('div');
-      header.className = 'grid-header';
-      header.textContent = `${String(h).padStart(2, '0')}:00`;
-      grid.appendChild(header);
-    });
-    
-    // Day rows
-    DAYS.forEach((day, dayIdx) => {
-      const dayLabel = document.createElement('div');
-      dayLabel.className = 'day-label';
-      dayLabel.textContent = day;
-      grid.appendChild(dayLabel);
-      
-      HOURS.forEach((hour, hourIdx) => {
-        const slot = document.createElement('div');
-        slot.className = 'slot';
-        slot.dataset.day = day;
-        slot.dataset.hour = hour;
-        slot.dataset.dayIdx = dayIdx;
-        slot.dataset.hourIdx = hourIdx;
-        grid.appendChild(slot);
-      });
-    });
+  // ----- Utils -----
+  const $ = s => document.querySelector(s);
+  const $$ = s => Array.from(document.querySelectorAll(s));
+  function uid(){ return Math.random().toString(36).slice(2,10); }
+  function fmtOffset(min){
+    const sign = min<=0?'+':'-';
+    const abs = Math.abs(min);
+    const h = String(Math.floor(abs/60)).padStart(2,'0');
+    const m = String(abs%60).padStart(2,'0');
+    return `UTC${sign}${h}:${m}`;
+  }
+  function logEvent(msg, level='info'){
+    const el = document.createElement('div');
+    el.className='px-4 py-2 flex items-start gap-3';
+    const dot = level==='warn'?'bg-amber-400':level==='error'?'bg-rose-400':'bg-cyan-400';
+    el.innerHTML=`<span class="mt-1 size-1.5 rounded-full ${dot}"></span><div><div class="text-slate-200">${msg}</div><div class="mono text-[11px] text-slate-500">${new Date().toLocaleTimeString()}</div></div>`;
+    $('#log').prepend(el);
+    $('#logCount').textContent = `${$('#log').children.length} events`;
+  }
+  function toast(msg){ 
+    const t=document.createElement('div');
+    t.className='toast rounded-xl border border-slate-700 bg-slate-900/95 px-3 py-2 text-sm shadow-lg flex items-center gap-2';
+    t.innerHTML=`<span class="size-1.5 rounded-full bg-emerald-400"></span>${msg}`;
+    $('#toastContainer').append(t);
+    setTimeout(()=>{t.style.opacity='0'; t.style.transform='translateY(4px)'; setTimeout(()=>t.remove(),200)},2500);
   }
 
-  function initFirebase() {
-    const statusDot = document.getElementById('statusDot');
-    const statusText = document.getElementById('statusText');
-    
-    if (!statusDot || !statusText) return;
-    
-    const membersRef = ref(db, 'orgs/sw-avail/members');
-    
-    onValue(membersRef, (snapshot) => {
-      membersData = snapshot.val() || {};
-      statusDot.classList.add('connected');
-      statusText.textContent = 'LIVE SYNC';
-      updateUI();
-    }, (error) => {
-      statusDot.classList.remove('connected');
-      statusText.textContent = 'OFFLINE';
-      console.error('Firebase error:', error);
-    });
+  // ----- Timezone mapping -----
+  function buildMapping(tz){
+    const map = new Array(168).fill(0);
+    const inv = new Array(168).fill(0);
+    const dayMap = {Mon:0,Tue:1,Wed:2,Thu:3,Fri:4,Sat:5,Sun:6};
+    for(let utcDay=0; utcDay<7; utcDay++){
+      for(let utcHour=0; utcHour<24; utcHour++){
+        const date = new Date(Date.UTC(REF.y, REF.m, REF.d + utcDay, utcHour));
+        const fmt = new Intl.DateTimeFormat('en-US',{timeZone:tz, weekday:'short', hour:'numeric', hour12:false});
+        const parts = fmt.formatToParts(date);
+        const hour = parseInt(parts.find(p=>p.type==='hour').value,10)%24;
+        const weekday = parts.find(p=>p.type==='weekday').value;
+        const dispDay = dayMap[weekday] ?? 0;
+        const utcIdx = utcDay*24+utcHour;
+        const dispIdx = dispDay*24+hour;
+        map[utcIdx]=dispIdx;
+        inv[dispIdx]=utcIdx;
+      }
+    }
+    return {map,inv};
   }
 
-  function attachEventListeners() {
-    const grid = document.getElementById('calendarGrid');
-    const tooltip = document.getElementById('tooltip');
-    
-    if (!grid || !tooltip) return;
+  function getDisplayTz(){
+    return state.view==='local' ? state.tz : 'UTC';
+  }
 
-    // Event delegation for all cells - fixes "only Monday 00:00 works" bug
-    grid.addEventListener('mousedown', (e) => {
-      if (!e.target.classList.contains('slot') || !selectedMember) return;
-      e.preventDefault();
-      isDragging = true;
-      const key = `${e.target.dataset.day}_${e.target.dataset.hour}`;
-      const currentState = membersData[selectedMember]?.slots?.[key] || false;
-      dragMode = currentState ? 'remove' : 'add';
-      toggleSlot(e.target, dragMode === 'add');
-    });
-
-    grid.addEventListener('mouseover', (e) => {
-      if (!e.target.classList.contains('slot')) return;
-      
-      // Drag paint
-      if (isDragging && selectedMember) {
-        toggleSlot(e.target, dragMode === 'add');
-      }
-      
-      // Tooltip
-      showTooltip(e.target, tooltip);
-    });
-
-    grid.addEventListener('mouseout', (e) => {
-      if (e.target.classList.contains('slot')) {
-        tooltip.classList.remove('visible');
-      }
-    });
-
-    grid.addEventListener('mousemove', (e) => {
-      if (tooltip.classList.contains('visible')) {
-        tooltip.style.left = e.clientX + 15 + 'px';
-        tooltip.style.top = e.clientY + 15 + 'px';
-      }
-    });
-
-    document.addEventListener('mouseup', () => {
-      isDragging = false;
-      dragMode = null;
-    });
-
-    // Form submission
-    const form = document.getElementById('addMemberForm');
-    form?.addEventListener('submit', handleAddMember);
-
-    // Member select
-    const memberSelect = document.getElementById('memberSelect');
-    memberSelect?.addEventListener('change', (e) => {
-      selectedMember = e.target.value || null;
-      updateCurrentMemberDisplay();
-      updateUI();
-    });
-
-    // Clear selection
-    document.getElementById('clearSelection')?.addEventListener('click', () => {
-      selectedMember = null;
-      if (memberSelect) memberSelect.value = '';
-      updateCurrentMemberDisplay();
-      updateUI();
-    });
-
-    // Clear all slots for member
-    document.getElementById('clearAllBtn')?.addEventListener('click', () => {
-      if (!selectedMember) {
-        alert('Select a member first');
+  // ----- Data -----
+  function defaultUsers(){
+    const names = ['You','Mira Chen','Jon Park','Sofia Alvarez','Dev Team','Design','Ops'];
+    const avatars = [0,1,2,3,4,5,6].map(i=>`https://i.pravatar.cc/64?u=sw${i}`);
+    return names.map((n,i)=>({
+      id:'u'+i,
+      name:n,
+      avatar:avatars[i],
+      color:['#22d3ee','#a78bfa','#34d399','#fbbf24','#f472b6','#60a5fa','#fb7185'][i],
+      availability: new Set()
+    }));
+  }
+  function randomAvailability(set, count=40){
+    while(set.size<count){
+      const d = Math.floor(Math.random()*5); // weekday bias
+      const h = 9 + Math.floor(Math.random()*10);
+      set.add(`${d}-${h}`);
+    }
+  }
+  function loadState(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){
+        const obj = JSON.parse(raw);
+        state.users = obj.users.map(u=>({...u, availability:new Set(u.availability)}));
+        state.currentUserId = obj.currentUserId || 'u0';
+        logEvent('Loaded from localStorage','info');
         return;
       }
-      if (confirm(`Clear all availability slots for ${selectedMember}?`)) {
-        const slotsRef = ref(db, `orgs/sw-avail/members/${selectedMember}/slots`);
-        remove(slotsRef);
-      }
-    });
-
-    // Filters
-    document.getElementById('searchCallsign')?.addEventListener('input', (e) => {
-      searchFilter = e.target.value.toLowerCase();
-      updateUI();
-    });
-
-    document.getElementById('roleFilter')?.addEventListener('change', (e) => {
-      roleFilter = e.target.value;
-      updateUI();
-    });
+    }catch{}
+    state.users = defaultUsers();
+    state.users.slice(1).forEach(u=>randomAvailability(u.availability, 30+Math.floor(Math.random()*30)));
+    saveState();
+  }
+  function saveState(){
+    const obj = {
+      users: state.users.map(u=>({...u, availability:[...u.availability]})),
+      currentUserId: state.currentUserId
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(obj));
   }
 
-  function handleAddMember(e) {
-    e.preventDefault();
-    const callsignInput = document.getElementById('callsign');
-    const timezoneSelect = document.getElementById('timezone');
-    
-    if (!callsignInput || !timezoneSelect) return;
-    
-    const callsign = callsignInput.value.trim();
-    if (!callsign) return;
-    
-    const roles = Array.from(document.querySelectorAll('.role-checkbox input:checked')).map(cb => cb.value);
-    const timezone = timezoneSelect.value;
-    
-    const memberRef = ref(db, `orgs/sw-avail/members/${callsign}`);
-    set(memberRef, {
-      callsign,
-      timezone,
-      roles,
-      slots: membersData[callsign]?.slots || {},
-      updated: Date.now()
-    });
-    
-    e.target.reset();
-    selectedMember = callsign;
-    const memberSelect = document.getElementById('memberSelect');
-    if (memberSelect) memberSelect.value = callsign;
-    updateCurrentMemberDisplay();
+  // ----- Rendering -----
+  function renderTz(){
+    $('#tzName').textContent = state.tz;
+    $('#tzOffset').textContent = fmtOffset(new Date().getTimezoneOffset());
+    $('#viewModeLabel').textContent = `${state.view.toUpperCase()} • ${getDisplayTz()}`;
+    $('#displayTzInline').textContent = state.view;
+    $('#toggleKnob').style.transform = state.view==='local' ? 'translateX(0%)' : 'translateX(100%)';
+    $('#toggleTz').setAttribute('aria-pressed', state.view==='utc');
   }
 
-  function toggleSlot(slotEl, shouldAdd) {
-    if (!selectedMember || !slotEl) return;
-    
-    const day = slotEl.dataset.day;
-    const hour = slotEl.dataset.hour;
-    if (!day || hour === undefined) return;
-    
-    const key = `${day}_${hour}`;
-    const slotRef = ref(db, `orgs/sw-avail/members/${selectedMember}/slots/${key}`);
-    
-    if (shouldAdd) {
-      set(slotRef, true);
-    } else {
-      remove(slotRef);
+  function renderHourHeader(){
+    const frag=document.createDocumentFragment();
+    for(let h=0;h<24;h++){
+      const div=document.createElement('div');
+      div.className='h-10 flex items-center justify-center text-[11px] mono text-slate-500 border-l border-slate-800/60';
+      div.textContent = String(h).padStart(2,'0');
+      frag.append(div);
     }
+    $('#hourHeader').replaceChildren(frag);
   }
 
-  function updateUI() {
-    updateMemberList();
-    updateMemberSelect();
-    updateHeatmap();
-    updateStats();
-    updateCurrentMemberDisplay();
+  function heatColor(count,max){
+    if(count===0) return 'bg-slate-800/60 border-slate-800';
+    const t = count/max;
+    if(t<0.25) return 'bg-cyan-950 border-cyan-900';
+    if(t<0.5) return 'bg-cyan-800 border-cyan-700';
+    if(t<0.75) return 'bg-cyan-600 border-cyan-500';
+    return 'bg-emerald-400 border-emerald-300 text-slate-900';
   }
 
-  function updateMemberList() {
-    const list = document.getElementById('membersList');
-    if (!list) return;
-    
-    list.innerHTML = '';
-    
-    Object.values(membersData).forEach(member => {
-      const item = document.createElement('div');
-      item.className = 'member-item';
-      item.innerHTML = `
-        <div>
-          <div><strong>${member.callsign}</strong> [${member.timezone}]</div>
-          <div class="member-roles">${(member.roles || []).join(' • ') || 'No roles'}</div>
+  function renderGrid(){
+    const tz = getDisplayTz();
+    state.mapping = buildMapping(tz);
+    const {map} = state.mapping;
+
+    // compute heat in display space
+    const heat = new Array(168).fill(0);
+    const cellUsers = Array.from({length:168},()=>[]);
+    state.users.forEach(u=>{
+      u.availability.forEach(key=>{
+        const [d,h] = key.split('-').map(Number);
+        const utcIdx = d*24+h;
+        const dispIdx = map[utcIdx];
+        heat[dispIdx]++;
+        cellUsers[dispIdx].push(u);
+      });
+    });
+    const max = Math.max(1, ...heat);
+
+    // peak
+    const peakIdx = heat.indexOf(max);
+    const peakDay = Math.floor(peakIdx/24);
+    const peakHour = peakIdx%24;
+    $('#peakHour').textContent = `${DAY_FULL[peakDay]} ${String(peakHour).padStart(2,'0')}:00`;
+    $('#peakCount').textContent = `${max} ${max===1?'person':'people'} overlapping`;
+    const avWrap = $('#peakAvatars');
+    avWrap.innerHTML='';
+    cellUsers[peakIdx].slice(0,5).forEach(u=>{
+      const img=document.createElement('img');
+      img.src=u.avatar; img.className='size-7 rounded-full border-2 border-slate-900';
+      avWrap.append(img);
+    });
+
+    // coverage
+    const filled = heat.filter(c=>c>0).length;
+    const pct = Math.round(filled/168*100);
+    $('#coveragePct').textContent = pct+'%';
+    $('#coverageBar').style.width = pct+'%';
+    $('#coverageDelta').textContent = '+'+(Math.floor(Math.random()*4)+1)+'%';
+
+    // render rows
+    const rows = $('#gridRows');
+    rows.innerHTML='';
+    const currentUser = state.users.find(u=>u.id===state.currentUserId);
+    const myUtcSet = currentUser?.availability || new Set();
+
+    // build reverse lookup for my slots in display space
+    const myDispSet = new Set();
+    myUtcSet.forEach(key=>{
+      const [d,h]=key.split('-').map(Number);
+      const dispIdx = map[d*24+h];
+      myDispSet.add(dispIdx);
+    });
+
+    for(let d=0; d<7; d++){
+      const row = document.createElement('div');
+      row.className='grid grid-heat items-stretch';
+      const label = document.createElement('div');
+      label.className='sticky left-0 z-10 bg-slate-950 flex items-center justify-end pr-3 text-xs font-medium text-slate-400 border-r border-slate-800';
+      label.innerHTML = `<span class="hidden sm:inline">${DAY_FULL[d].slice(0,3)}</span><span class="sm:hidden">${DAYS[d]}</span>`;
+      row.append(label);
+      for(let h=0; h<24; h++){
+        const idx = d*24+h;
+        const count = heat[idx];
+        const usersHere = cellUsers[idx];
+        const cell = document.createElement('button');
+        cell.type='button';
+        cell.dataset.idx = idx;
+        cell.className = `cell relative h-11 border-l border-slate-800/60 ${heatColor(count,max)} ${myDispSet.has(idx)?'active':''}`;
+        cell.innerHTML = `<span class="absolute inset-0 flex items-center justify-center text-[10px] mono ${count>2?'text-white/90':'text-slate-500'}">${count>0?count:''}</span>`;
+        cell.addEventListener('mouseenter', e=>showTooltip(e, d,h, count, usersHere));
+        cell.addEventListener('mouseleave', hideTooltip);
+        cell.addEventListener('mousedown', e=>{ e.preventDefault(); startPaint(idx, e.shiftKey); });
+        cell.addEventListener('mouseenter', e=>{ if(state.isPainting) paint(idx); });
+        row.append(cell);
+      }
+      rows.append(row);
+    }
+
+    // my stats
+    $('#mySlots').textContent = myUtcSet.size;
+    $('#myHours').textContent = myUtcSet.size;
+    const overlap = heat.reduce((a,c,i)=> a + (myDispSet.has(i)?c-1:0),0);
+    $('#myOverlap').textContent = myUtcSet.size? Math.round(overlap/myUtcSet.size*10)/10+'%':'0%';
+  }
+
+  function startPaint(dispIdx, isErase){
+    state.isPainting=true;
+    state.paintMode = isErase ? 'remove' : 'add';
+    paint(dispIdx);
+    window.addEventListener('mouseup', stopPaint, {once:true});
+  }
+  function stopPaint(){ state.isPainting=false; saveState(); renderGrid(); renderMembers(); }
+  function paint(dispIdx){
+    const {inv} = state.mapping;
+    const utcIdx = inv[dispIdx];
+    const utcDay = Math.floor(utcIdx/24);
+    const utcHour = utcIdx%24;
+    const key = `${utcDay}-${utcHour}`;
+    const user = state.users.find(u=>u.id===state.currentUserId);
+    if(!user) return;
+    if(state.paintMode==='add') user.availability.add(key);
+    else user.availability.delete(key);
+    // live update cell
+    renderGrid();
+  }
+
+  function showTooltip(e, d, h, count, users){
+    const tt = $('#tooltip');
+    $('#tooltipTitle').textContent = `${DAY_FULL[d]} ${String(h).padStart(2,'0')}:00`;
+    $('#tooltipSub').textContent = count===0 ? 'No one available' : `${count} ${count===1?'person':'people'} • ${users.map(u=>u.name.split(' ')[0]).slice(0,3).join(', ')}${users.length>3?' …':''}`;
+    tt.style.left = e.clientX+12+'px';
+    tt.style.top = e.clientY+12+'px';
+    tt.classList.remove('hidden');
+  }
+  function hideTooltip(){ $('#tooltip').classList.add('hidden'); }
+
+  function renderMembers(){
+    const list = $('#memberList');
+    list.innerHTML='';
+    state.users.forEach(u=>{
+      const row=document.createElement('div');
+      row.className='flex items-center gap-3 p-2 rounded-xl hover:bg-slate-800/60 border border-transparent hover:border-slate-700 cursor-pointer';
+      row.innerHTML=`
+        <img src="${u.avatar}" class="size-9 rounded-lg border border-slate-700">
+        <div class="min-w-0 flex-1">
+          <div class="text-sm font-medium truncate">${u.name}</div>
+          <div class="text-xs text-slate-500">${u.availability.size} slots</div>
         </div>
-        <button class="delete-btn" data-callsign="${member.callsign}" title="Delete Member">✕</button>
+        <span class="size-2.5 rounded-full" style="background:${u.color}"></span>
       `;
-      list.appendChild(item);
+      row.onclick=()=>{ state.currentUserId=u.id; updateCurrentUser(); renderGrid(); renderMembers(); };
+      if(u.id===state.currentUserId) row.classList.add('bg-slate-800/80','border-slate-700');
+      list.append(row);
     });
-    
-    // Event delegation for delete buttons
-    list.querySelectorAll('.delete-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const callsign = e.target.dataset.callsign;
-        if (confirm(`Delete ${callsign}?`)) {
-          remove(ref(db, `orgs/sw-avail/members/${callsign}`));
-          if (selectedMember === callsign) {
-            selectedMember = null;
-            const memberSelect = document.getElementById('memberSelect');
-            if (memberSelect) memberSelect.value = '';
-          }
-        }
-      });
-    });
+
+    const picker = $('#userPicker');
+    picker.innerHTML = state.users.map(u=>`<option value="${u.id}" ${u.id===state.currentUserId?'selected':''}>${u.name}</option>`).join('');
   }
 
-  function updateMemberSelect() {
-    const select = document.getElementById('memberSelect');
-    if (!select) return;
-    
-    const currentVal = select.value;
-    select.innerHTML = '<option value="">-- Select Member --</option>';
-    
-    Object.keys(membersData).sort().forEach(callsign => {
-      const opt = document.createElement('option');
-      opt.value = callsign;
-      opt.textContent = callsign;
-      select.appendChild(opt);
-    });
-    
-    if (currentVal && membersData[currentVal]) {
-      select.value = currentVal;
-    }
+  function updateCurrentUser(){
+    const u = state.users.find(x=>x.id===state.currentUserId);
+    $('#currentAvatar').src = u.avatar;
+    $('#currentName').textContent = u.name;
+    $('#currentId').textContent = u.id;
   }
 
-  function updateCurrentMemberDisplay() {
-    const display = document.getElementById('currentMember');
-    const name = document.getElementById('currentMemberName');
-    
-    if (!display || !name) return;
-    
-    if (selectedMember && membersData[selectedMember]) {
-      display.style.display = 'flex';
-      name.textContent = `${selectedMember} - EDITING MODE`;
-    } else {
-      display.style.display = 'none';
-    }
-  }
+  // ----- Events -----
+  $('#toggleTz').onclick = ()=>{
+    state.view = state.view==='local' ? 'utc' : 'local';
+    renderTz();
+    renderGrid();
+    logEvent(`Switched view to ${state.view.toUpperCase()}`, 'info');
+  };
+  $('#clearSelection').onclick = ()=>{
+    const u = state.users.find(x=>x.id===state.currentUserId);
+    u.availability.clear();
+    saveState();
+    renderGrid();
+    renderMembers();
+    toast('Cleared your availability');
+    logEvent(`${u.name} cleared slots`, 'warn');
+  };
+  $('#addMemberBtn').onclick = ()=>{
+    const name = prompt('Member name:');
+    if(!name) return;
+    const id = 'u'+uid();
+    state.users.push({id,name,avatar:`https://i.pravatar.cc/64?u=${id}`,color:'#22d3ee',availability:new Set()});
+    saveState();
+    renderMembers();
+    toast('Member added');
+  };
+  $('#userPicker').onchange = e=>{ state.currentUserId=e.target.value; updateCurrentUser(); renderGrid(); renderMembers(); };
+  $('#syncBtn').onclick = ()=>{ toast('Synced (demo)'); logEvent('Manual sync triggered','info'); };
+  $('#exportBtn').onclick = ()=>{
+    const data = JSON.stringify({users:state.users.map(u=>({...u,availability:[...u.availability]}))},null,2);
+    const blob = new Blob([data],{type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download='swavail-export.json'; a.click();
+    URL.revokeObjectURL(url);
+    toast('Exported JSON');
+  };
+  $('#connectFirebaseBtn').onclick = ()=>{ toast('Firebase demo mode active. Connect project in settings.'); };
 
-  function updateHeatmap() {
-    const slots = document.querySelectorAll('.slot');
-    
-    slots.forEach(slot => {
-      const day = slot.dataset.day;
-      const hour = slot.dataset.hour;
-      if (!day || hour === undefined) return;
-      
-      const key = `${day}_${hour}`;
-      const availableMembers = [];
-      let isSelectedMemberAvailable = false;
-      
-      Object.values(membersData).forEach(member => {
-        // Apply filters
-        if (searchFilter && !member.callsign.toLowerCase().includes(searchFilter)) return;
-        if (roleFilter && !(member.roles || []).includes(roleFilter)) return;
-        
-        if (member.slots?.[key]) {
-          availableMembers.push(member.callsign);
-          if (selectedMember && member.callsign === selectedMember) {
-            isSelectedMemberAvailable = true;
-          }
-        }
-      });
-      
-      const count = availableMembers.length;
-      
-      // Reset classes
-      slot.className = 'slot';
-      if (selectedMember) slot.classList.add('editable');
-      
-      // Heat level
-      if (count === 0) slot.classList.add('heat-0');
-      else if (count <= 2) slot.classList.add('heat-1');
-      else if (count <= 4) slot.classList.add('heat-2');
-      else if (count <= 7) slot.classList.add('heat-3');
-      else if (count <= 10) slot.classList.add('heat-4');
-      else slot.classList.add('heat-5');
-      
-      // Selected member override
-      if (isSelectedMemberAvailable) {
-        slot.classList.add('selected');
-      }
-      
-      // Store for tooltip
-      slot.dataset.count = count;
-      slot.dataset.members = availableMembers.join(', ');
-    });
-  }
+  // drag paint global
+  document.addEventListener('mouseup', ()=> state.isPainting=false);
 
-  function showTooltip(slotEl, tooltipEl) {
-    if (!slotEl || !tooltipEl) return;
-    
-    const day = slotEl.dataset.day;
-    const hour = parseInt(slotEl.dataset.hour);
-    const count = parseInt(slotEl.dataset.count || 0);
-    const members = slotEl.dataset.members;
-    
-    if (!day || isNaN(hour)) return;
-    
-    const endHour = hour + 2;
-    const timeStr = `${String(hour).padStart(2, '0')}:00-${String(endHour).padStart(2, '0')}:00`;
-    
-    tooltipEl.innerHTML = `
-      <div class="tooltip-title">${day} ${timeStr}</div>
-      <div class="tooltip-list">
-        <strong>${count} Member${count !== 1 ? 's' : ''}</strong><br>
-        ${count > 0 ? members.split(', ').join('<br>') : '<em>No availability</em>'}
-      </div>
-    `;
-    tooltipEl.classList.add('visible');
-  }
-
-  function updateStats() {
-    const statMembers = document.getElementById('statMembers');
-    const statSlots = document.getElementById('statSlots');
-    const statPeak = document.getElementById('statPeak');
-    
-    if (!statMembers || !statSlots || !statPeak) return;
-    
-    const memberCount = Object.keys(membersData).length;
-    let totalSlots = 0;
-    let peakCount = 0;
-    
-    const heatmap = {};
-    
-    Object.values(membersData).forEach(member => {
-      if (member.slots) {
-        Object.keys(member.slots).forEach(slotKey => {
-          totalSlots++;
-          heatmap[slotKey] = (heatmap[slotKey] || 0) + 1;
-          if (heatmap[slotKey] > peakCount) peakCount = heatmap[slotKey];
-        });
-      }
-    });
-    
-    statMembers.textContent = memberCount;
-    statSlots.textContent = totalSlots;
-    statPeak.textContent = peakCount;
-  }
+  // init
+  loadState();
+  renderTz();
+  renderHourHeader();
+  renderMembers();
+  updateCurrentUser();
+  renderGrid();
+  logEvent('SW-AVAIL v3.2 preview ready', 'info');
 </script>
 <script>(function(){document.addEventListener("click",function(e){var a=e.target.closest("[data-product-id]");if(!a)return;e.preventDefault();var pid=a.getAttribute("data-product-id");if(pid)parent.postMessage({type:"ecto-artifact-link-click",productId:pid},"*")})})();</script>
 </body>
